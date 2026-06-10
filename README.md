@@ -99,6 +99,8 @@ docker compose up -d --build
 Phase 1 MVP 開發中，瀏覽器歷史擷取、分類、YouTube metadata 補全與 Gemini 彙整已完成並測試成功；
 尚待完成「YouTube 音樂內容排除」與「輸出 Markdown + 排程/補跑邏輯」。
 
+![n8n workflow 測試成功畫面](docs/images/n8n_workflow_test.png)
+
 ---
 
 ## 授權
