@@ -1,0 +1,73 @@
+{
+  "name": "Daily Digest - 01 讀取與分類瀏覽器歷史",
+  "nodes": [
+    {
+      "id": "manual-trigger",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "read-history",
+      "name": "讀取瀏覽器歷史",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const { execSync } = require('child_process');\nconst fs = require('fs');\n\nconst CHROME_EPOCH_OFFSET_US = 11644473600000000;\nconst TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;\n\nconst now = new Date();\nconst taipeiNow = new Date(now.getTime() + TAIPEI_OFFSET_MS);\nconst y = taipeiNow.getUTCFullYear();\nconst m = taipeiNow.getUTCMonth();\nconst d = taipeiNow.getUTCDate();\n\nconst startUtcMs = Date.UTC(y, m, d, 0, 0, 0) - TAIPEI_OFFSET_MS;\nconst endUtcMs = startUtcMs + 24 * 60 * 60 * 1000;\n\nconst startChrome = startUtcMs * 1000 + CHROME_EPOCH_OFFSET_US;\nconst endChrome = endUtcMs * 1000 + CHROME_EPOCH_OFFSET_US;\n\nconst sources = [\n  { name: 'chrome', src: '/data/chrome/History', tmp: '/tmp/chrome_history_copy.db' },\n  { name: 'edge', src: '/data/edge/History', tmp: '/tmp/edge_history_copy.db' },\n];\n\nconst results = [];\n\nfor (const { name, src, tmp } of sources) {\n  try {\n    fs.copyFileSync(src, tmp);\n    const sql = `SELECT url, title, last_visit_time, visit_count FROM urls WHERE last_visit_time BETWEEN ${startChrome} AND ${endChrome} ORDER BY last_visit_time DESC`;\n    const output = execSync(`sqlite3 -json \"${tmp}\" \"${sql}\"`, { encoding: 'utf8', maxBuffer: 1024 * 1024 * 20 });\n    const rows = output.trim() ? JSON.parse(output) : [];\n    for (const row of rows) {\n      results.push({\n        json: {\n          source: name,\n          url: row.url,\n          title: row.title,\n          visitCount: row.visit_count,\n          lastVisitTime: new Date((row.last_visit_time - CHROME_EPOCH_OFFSET_US) / 1000).toISOString(),\n        },\n      });\n    }\n  } catch (err) {\n    results.push({ json: { source: name, _error: String(err.message || err) } });\n  } finally {\n    if (fs.existsSync(tmp)) fs.unlinkSync(tmp);\n  }\n}\n\nreturn results;"
+      }
+    },
+    {
+      "id": "classify",
+      "name": "分類與排除",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const fs = require('fs');\n\nlet blacklistDomains = [];\ntry {\n  const raw = fs.readFileSync('/config/domain_blacklist.json', 'utf8');\n  const data = JSON.parse(raw);\n  for (const key of Object.keys(data)) {\n    if (key.startsWith('_')) continue;\n    if (Array.isArray(data[key])) blacklistDomains.push(...data[key]);\n  }\n} catch (err) {\n  // no blacklist file -> no exclusions\n}\n\nconst items = $input.all();\nconst merged = new Map();\n\nfor (const item of items) {\n  const { url, title, visitCount, lastVisitTime, source, _error } = item.json;\n  if (_error) continue;\n  if (!url) continue;\n  if (blacklistDomains.some((domain) => domain && url.includes(domain))) continue;\n\n  let category = 'article';\n  let videoId = null;\n\n  const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);\n  const shortMatch = url.match(/youtu\\.be\\/([a-zA-Z0-9_-]{11})/);\n  if (url.includes('youtube.com/watch') && watchMatch) {\n    category = 'youtube';\n    videoId = watchMatch[1];\n  } else if (url.includes('youtu.be/') && shortMatch) {\n    category = 'youtube';\n    videoId = shortMatch[1];\n  }\n\n  const existing = merged.get(url);\n  if (existing) {\n    existing.visitCount += visitCount || 0;\n    existing.sources = Array.from(new Set([...existing.sources, source]));\n    if (lastVisitTime > existing.lastVisitTime) existing.lastVisitTime = lastVisitTime;\n  } else {\n    merged.set(url, {\n      category,\n      videoId,\n      url,\n      title,\n      visitCount: visitCount || 0,\n      lastVisitTime,\n      sources: [source],\n    });\n  }\n}\n\nreturn Array.from(merged.values())\n  .sort((a, b) => (a.lastVisitTime < b.lastVisitTime ? 1 : -1))\n  .map((json) => ({ json }));"
+      }
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "讀取瀏覽器歷史",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "讀取瀏覽器歷史": {
+      "main": [
+        [
+          {
+            "node": "分類與排除",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

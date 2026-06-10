@@ -1,0 +1,14 @@
+.env
+
+# Python / Poetry
+.venv/
+__pycache__/
+*.pyc
+
+# 開發協作用個人筆記/紀錄，不上傳
+.claude/
+Instruction/
+logs/
+Upgrade/
+CLAUDE.md
+log.md

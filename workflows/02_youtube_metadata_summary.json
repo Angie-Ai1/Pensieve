@@ -1,0 +1,284 @@
+{
+  "name": "Daily Digest - 02 YouTube metadata 補全 + AI 彙整(Gemini)",
+  "nodes": [
+    {
+      "id": "manual-trigger",
+      "name": "When clicking 'Execute workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "read-history",
+      "name": "讀取瀏覽器歷史",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const { execSync } = require('child_process');\nconst fs = require('fs');\n\nconst CHROME_EPOCH_OFFSET_US = 11644473600000000;\nconst TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;\n\nconst now = new Date();\nconst taipeiNow = new Date(now.getTime() + TAIPEI_OFFSET_MS);\nconst y = taipeiNow.getUTCFullYear();\nconst m = taipeiNow.getUTCMonth();\nconst d = taipeiNow.getUTCDate();\n\nconst startUtcMs = Date.UTC(y, m, d, 0, 0, 0) - TAIPEI_OFFSET_MS;\nconst endUtcMs = startUtcMs + 24 * 60 * 60 * 1000;\n\nconst startChrome = startUtcMs * 1000 + CHROME_EPOCH_OFFSET_US;\nconst endChrome = endUtcMs * 1000 + CHROME_EPOCH_OFFSET_US;\n\nconst sources = [\n  { name: 'chrome', src: '/data/chrome/History', tmp: '/tmp/chrome_history_copy.db' },\n  { name: 'edge', src: '/data/edge/History', tmp: '/tmp/edge_history_copy.db' },\n];\n\nconst results = [];\n\nfor (const { name, src, tmp } of sources) {\n  try {\n    fs.copyFileSync(src, tmp);\n    const sql = `SELECT url, title, last_visit_time, visit_count FROM urls WHERE last_visit_time BETWEEN ${startChrome} AND ${endChrome} ORDER BY last_visit_time DESC`;\n    const output = execSync(`sqlite3 -json \"${tmp}\" \"${sql}\"`, { encoding: 'utf8', maxBuffer: 1024 * 1024 * 20 });\n    const rows = output.trim() ? JSON.parse(output) : [];\n    for (const row of rows) {\n      results.push({\n        json: {\n          source: name,\n          url: row.url,\n          title: row.title,\n          visitCount: row.visit_count,\n          lastVisitTime: new Date((row.last_visit_time - CHROME_EPOCH_OFFSET_US) / 1000).toISOString(),\n        },\n      });\n    }\n  } catch (err) {\n    results.push({ json: { source: name, _error: String(err.message || err) } });\n  } finally {\n    if (fs.existsSync(tmp)) fs.unlinkSync(tmp);\n  }\n}\n\nreturn results;"
+      }
+    },
+    {
+      "id": "classify",
+      "name": "分類與排除",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const fs = require('fs');\n\nlet blacklistDomains = [];\ntry {\n  const raw = fs.readFileSync('/config/domain_blacklist.json', 'utf8');\n  const data = JSON.parse(raw);\n  for (const key of Object.keys(data)) {\n    if (key.startsWith('_')) continue;\n    if (Array.isArray(data[key])) blacklistDomains.push(...data[key]);\n  }\n} catch (err) {\n  // no blacklist file -> no exclusions\n}\n\nconst items = $input.all();\nconst merged = new Map();\n\nfor (const item of items) {\n  const { url, title, visitCount, lastVisitTime, source, _error } = item.json;\n  if (_error) continue;\n  if (!url) continue;\n  if (blacklistDomains.some((domain) => domain && url.includes(domain))) continue;\n\n  let category = 'article';\n  let videoId = null;\n\n  const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);\n  const shortMatch = url.match(/youtu\\.be\\/([a-zA-Z0-9_-]{11})/);\n  if (url.includes('youtube.com/watch') && watchMatch) {\n    category = 'youtube';\n    videoId = watchMatch[1];\n  } else if (url.includes('youtu.be/') && shortMatch) {\n    category = 'youtube';\n    videoId = shortMatch[1];\n  }\n\n  const existing = merged.get(url);\n  if (existing) {\n    existing.visitCount += visitCount || 0;\n    existing.sources = Array.from(new Set([...existing.sources, source]));\n    if (lastVisitTime > existing.lastVisitTime) existing.lastVisitTime = lastVisitTime;\n  } else {\n    merged.set(url, {\n      category,\n      videoId,\n      url,\n      title,\n      visitCount: visitCount || 0,\n      lastVisitTime,\n      sources: [source],\n    });\n  }\n}\n\nreturn Array.from(merged.values())\n  .sort((a, b) => (a.lastVisitTime < b.lastVisitTime ? 1 : -1))\n  .map((json) => ({ json }));"
+      }
+    },
+    {
+      "id": "dedupe-video",
+      "name": "YouTube videoId 去重",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const items = $input.all();\nconst youtubeMap = new Map();\nconst others = [];\n\nfor (const item of items) {\n  const data = item.json;\n  if (data.category === 'youtube' && data.videoId) {\n    const existing = youtubeMap.get(data.videoId);\n    if (existing) {\n      existing.visitCount += data.visitCount || 0;\n      existing.sources = Array.from(new Set([...existing.sources, ...data.sources]));\n      if (data.lastVisitTime > existing.lastVisitTime) {\n        existing.lastVisitTime = data.lastVisitTime;\n        existing.url = data.url;\n      }\n    } else {\n      youtubeMap.set(data.videoId, { ...data });\n    }\n  } else {\n    others.push(data);\n  }\n}\n\nreturn [...others, ...youtubeMap.values()]\n  .sort((a, b) => (a.lastVisitTime < b.lastVisitTime ? 1 : -1))\n  .map((json) => ({ json }));"
+      }
+    },
+    {
+      "id": "prep-yt-query",
+      "name": "準備 YouTube API 查詢",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const items = $input.all();\nconst videoIds = items\n  .map((i) => i.json)\n  .filter((d) => d.category === 'youtube' && d.videoId)\n  .map((d) => d.videoId);\n\n// videos.list 單次最多支援 50 個 id；個人瀏覽量極少超過此上限，直接截斷即可\n// 無影片時帶入一個固定的佔位 ID，避免空 id 參數讓 API 回傳 400 錯誤；\n// 此 ID 不會出現在去重後的清單中，因此後面比對時會被自然忽略\nconst idParam = videoIds.slice(0, 50).join(',') || 'dQw4w9WgXcQ';\n\nreturn [{ json: { idParam, hasVideos: videoIds.length > 0 } }];"
+      }
+    },
+    {
+      "id": "yt-videos-list",
+      "name": "YouTube videos.list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.googleapis.com/youtube/v3/videos",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet,contentDetails"
+            },
+            {
+              "name": "id",
+              "value": "={{ $json.idParam }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "parse-yt-meta",
+      "name": "解析 YouTube metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const response = $input.first().json;\nconst apiItems = Array.isArray(response.items) ? response.items : [];\n\nconst metaMap = new Map();\nfor (const v of apiItems) {\n  metaMap.set(v.id, {\n    ytTitle: v.snippet?.title,\n    channelTitle: v.snippet?.channelTitle,\n    categoryId: v.snippet?.categoryId,\n    duration: v.contentDetails?.duration,\n    description: (v.snippet?.description || '').slice(0, 200),\n  });\n}\n\nreturn $('YouTube videoId 去重').all().map((item) => {\n  const data = item.json;\n  if (data.category === 'youtube' && metaMap.has(data.videoId)) {\n    return { json: { ...data, ...metaMap.get(data.videoId) } };\n  }\n  return { json: data };\n});"
+      }
+    },
+    {
+      "id": "prep-gemini-input",
+      "name": "準備 Gemini 輸入",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const items = $input.all().map((i) => i.json);\nconst youtubeItems = items.filter((d) => d.category === 'youtube');\nconst articleItems = items.filter((d) => d.category === 'article');\n\nconst TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;\nconst dateStr = new Date(Date.now() + TAIPEI_OFFSET_MS).toISOString().slice(0, 10);\n\nconst youtubeForPrompt = youtubeItems.map((v) => ({\n  title: v.ytTitle || v.title,\n  channel: v.channelTitle,\n  duration: v.duration,\n  description: v.description,\n  url: v.url,\n}));\nconst articleForPrompt = articleItems.map((a) => ({ title: a.title, url: a.url }));\n\nconst userContent = `今天日期：${dateStr}\n\nYouTube 影片清單(共 ${youtubeForPrompt.length} 部)：\n${JSON.stringify(youtubeForPrompt, null, 2)}\n\n瀏覽文章清單(共 ${articleForPrompt.length} 篇)：\n${JSON.stringify(articleForPrompt, null, 2)}`;\n\nconst systemPrompt = `你是使用者的個人數位足跡彙整助理。請根據使用者今天觀看的 YouTube 影片與瀏覽的文章清單，產生一份繁體中文的每日摘要報告，輸出格式為 Markdown，結構如下：\n\n# 今日重點與關鍵字\n(2-4 句總覽，點出今天內容的主要主題與關鍵字)\n\n## YouTube 影片\n依主題分類條列，每項包含標題、頻道、簡短說明、原始連結\n\n## 瀏覽文章\n依主題分類條列，每項包含標題、原始連結\n\n## 觀察與洞察\n找出跨項目的關聯或洞察，並可提出延伸學習/閱讀建議\n\n若清單為空，該段落請簡短說明今天沒有相關紀錄。請直接輸出 Markdown 內容，不要加上程式碼區塊標記或額外說明文字。`;\n\nreturn [{\n  json: {\n    dateStr,\n    requestBody: {\n      system_instruction: {\n        parts: [{ text: systemPrompt }],\n      },\n      contents: [\n        { role: 'user', parts: [{ text: userContent }] },\n      ],\n      generationConfig: {\n        maxOutputTokens: 4096,\n      },\n    },\n  },\n}];"
+      }
+    },
+    {
+      "id": "gemini-summarize",
+      "name": "Gemini 彙整",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "format-output",
+      "name": "整理輸出",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const response = $input.first().json;\nconst text = response?.candidates?.[0]?.content?.parts?.[0]?.text || '';\nconst dateStr = $('準備 Gemini 輸入').first().json.dateStr;\n\nreturn [{ json: { date: dateStr, markdown: text } }];"
+      }
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "讀取瀏覽器歷史",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "讀取瀏覽器歷史": {
+      "main": [
+        [
+          {
+            "node": "分類與排除",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "分類與排除": {
+      "main": [
+        [
+          {
+            "node": "YouTube videoId 去重",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube videoId 去重": {
+      "main": [
+        [
+          {
+            "node": "準備 YouTube API 查詢",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "準備 YouTube API 查詢": {
+      "main": [
+        [
+          {
+            "node": "YouTube videos.list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YouTube videos.list": {
+      "main": [
+        [
+          {
+            "node": "解析 YouTube metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "解析 YouTube metadata": {
+      "main": [
+        [
+          {
+            "node": "準備 Gemini 輸入",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "準備 Gemini 輸入": {
+      "main": [
+        [
+          {
+            "node": "Gemini 彙整",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 彙整": {
+      "main": [
+        [
+          {
+            "node": "整理輸出",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

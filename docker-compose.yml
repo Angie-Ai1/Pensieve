@@ -1,0 +1,22 @@
+services:
+  n8n:
+    build: .
+    image: ai_agent_n8n:local
+    container_name: ai_agent_n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=Asia/Taipei
+      - TZ=Asia/Taipei
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - NODE_FUNCTION_ALLOW_BUILTIN=child_process,fs,path
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - "${CHROME_HISTORY_PATH}:/data/chrome:ro"
+      - "${EDGE_HISTORY_PATH}:/data/edge:ro"
+      - "${OBSIDIAN_VAULT_PATH}:/vault"
+      - ./config:/config:ro
+
+volumes:
+  n8n_data:

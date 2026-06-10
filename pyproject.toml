@@ -1,0 +1,9 @@
+[project]
+name = "pensieve"
+version = "0.1.0"
+description = "個人每日數位足跡彙整 + 互動式 AI Agent"
+requires-python = ">=3.13,<3.14"
+dependencies = []
+
+[tool.poetry]
+package-mode = false
