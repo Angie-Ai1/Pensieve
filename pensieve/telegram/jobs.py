@@ -6,12 +6,19 @@ from datetime import date, datetime, time, timedelta
 from telegram import Bot
 from telegram.ext import ContextTypes
 
-from pensieve import config, state
-from pensieve.context.daily_notes import TAIPEI_TZ, daily_note_path, read_daily_note
+from pensieve import config, gemini_client, prompts, state
+from pensieve.context.daily_notes import (
+    TAIPEI_TZ,
+    build_context_bundle,
+    daily_note_path,
+    read_daily_note,
+)
 
 logger = logging.getLogger(__name__)
 
 HIGHLIGHTS_HEADING = "# 今日重點與關鍵字"
+
+TELEGRAM_MESSAGE_LIMIT = 4096
 
 # 對應 n8n 23:30 的執行時間留出緩衝
 DAILY_DIGEST_TIMES = (time(23, 45, tzinfo=TAIPEI_TZ), time(23, 55, tzinfo=TAIPEI_TZ))
@@ -32,8 +39,21 @@ def _extract_highlights(content: str) -> str:
     return section.strip()
 
 
+async def _send_chunked(bot: Bot, text: str) -> None:
+    """依 Telegram 訊息長度上限分段傳送。"""
+    for i in range(0, len(text), TELEGRAM_MESSAGE_LIMIT):
+        await bot.send_message(chat_id=config.TELEGRAM_CHAT_ID, text=text[i : i + TELEGRAM_MESSAGE_LIMIT])
+
+
+async def _generate_daily_review() -> str:
+    """以互動問答的 system prompt + context，產生口語化每日回顧。"""
+    bundle = build_context_bundle()
+    prompt = prompts.build_prompt(bundle, prompts.DAILY_REVIEW_PROMPT)
+    return await gemini_client.generate(prompt)
+
+
 async def check_and_push_digest(bot: Bot, target_date: date | None = None) -> bool:
-    """檢查指定日期（預設今天）的每日彙整是否存在，存在則擷取重點段落並推播、記錄已推播；回傳是否已推播。"""
+    """檢查指定日期（預設今天）的每日彙整是否存在，存在則推播口語化回顧與重點段落、記錄已推播；回傳是否已推播。"""
     if target_date is None:
         target_date = datetime.now(TAIPEI_TZ).date()
 
@@ -41,11 +61,14 @@ async def check_and_push_digest(bot: Bot, target_date: date | None = None) -> bo
     if content is None:
         return False
 
+    review = await _generate_daily_review()
+    await _send_chunked(bot, review)
+
     highlights = _extract_highlights(content)
     relative_path = daily_note_path(target_date).relative_to(config.OBSIDIAN_VAULT_PATH)
     message = f"{HIGHLIGHTS_HEADING}\n\n{highlights}\n\n完整報告：{relative_path.as_posix()}"
-
     await bot.send_message(chat_id=config.TELEGRAM_CHAT_ID, text=message)
+
     state.mark_sent(f"{target_date:%Y-%m-%d}")
     return True
 

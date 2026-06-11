@@ -13,3 +13,9 @@ def build_prompt(context: str, user_message: str) -> str:
     """組合 system prompt + context + 使用者訊息為單一 prompt。"""
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(context=context)
     return f"{system_prompt}\n\n使用者問題：{user_message}"
+
+
+DAILY_REVIEW_PROMPT = (
+    "請用口語化、親切的繁體中文，幫我回顧今天的數位足跡內容，"
+    "並在最後提出一兩個延伸問題，引導我多分享一些想法或感受。"
+)
