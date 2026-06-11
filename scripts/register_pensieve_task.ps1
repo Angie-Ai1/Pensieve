@@ -28,7 +28,7 @@ $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable
 
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings `
-    -Description "pensieve 互動式 AI Agent（Telegram Bot 問答 + 每日推播）常駐執行" -Force
+    -Description "pensieve 互動式 AI Agent（Telegram Bot 問答 + 每日推播）常駐執行" -Force -ErrorAction Stop
 
 Write-Host "已註冊工作排程器任務：$TaskName"
 Write-Host "立即啟動：Start-ScheduledTask -TaskName $TaskName"
