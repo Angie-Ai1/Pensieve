@@ -10,11 +10,11 @@
 現代人每天瀏覽大量網頁與影片，但內容容易看完即忘、難以回顧與延伸思考。
 本專案的目標分兩階段：
 
-- **Phase 1（MVP，開發中）**：每天自動彙整「我今天看了什麼」
+- **Phase 1（MVP，已完成）**：每天自動彙整「我今天看了什麼」
   - 從瀏覽器歷史擷取當日 YouTube 觀看紀錄與瀏覽文章
   - 用 AI 分類、摘要、找出跨項目的觀察與洞察
   - 產出 Markdown 報告寫入 Obsidian vault
-- **Phase 2（規劃中）**：互動式 AI Agent
+- **Phase 2（開發中）**：互動式 AI Agent
   - 以每日彙整資料 + 歷史記錄作為 context
   - 與使用者討論學習規劃、新聞時事、工作任務、議題發想
 
@@ -31,7 +31,7 @@
 | AI 彙整 | Google Gemini API（`gemini-2.5-flash`） | 分類、摘要、產生洞察（取代原規劃的 Claude API，成本考量） |
 | 筆記輸出 | Obsidian Vault（本機 volume mount） | 每日 Markdown 報告 |
 | 開發協作 | Claude Code | 跨對話維持開發脈絡與進度追蹤 |
-| 依賴管理 | [Poetry](https://python-poetry.org/) | 為 Phase 2 互動式 Agent 預先建立 Python 環境骨架（目前尚無程式碼） |
+| 依賴管理 | [Poetry](https://python-poetry.org/) | Phase 2 互動式 Agent（`pensieve`）的 Python 開發環境 |
 
 ---
 
@@ -96,10 +96,21 @@ docker compose up -d --build
 
 ## 目前進度
 
-Phase 1 MVP 開發中，瀏覽器歷史擷取、分類、YouTube metadata 補全與 Gemini 彙整已完成並測試成功；
-尚待完成「YouTube 音樂內容排除」與「輸出 Markdown + 排程/補跑邏輯」。
+### Phase 1：每日數位足跡彙整（MVP）— 已完成
 
+- ✅ Docker 化 n8n（含 sqlite3 CLI 客製化映像）+ `docker-compose.yml` / `.env`
+- ✅ 讀取並分類瀏覽器歷史（YouTube 觀看紀錄 / 瀏覽文章），含 videoId 去重與音樂內容排除
+- ✅ YouTube metadata 補全（YouTube Data API）+ Gemini 彙整（分類、摘要、洞察）
+- ✅ 輸出 Markdown 報告至 Obsidian `Daily/`，並設定排程（23:30）與近 7 天補跑邏輯
+- ✅ 專案命名 Pensieve、建立 Poetry 環境、上傳至 GitHub（Public）
 ![n8n workflow 測試成功畫面](docs/images/n8n_workflow_test.png)
+
+### Phase 2：互動式 AI Agent — 開發中
+
+- ⬜ `MEMORY.md`（長期記憶）+ 每日彙整 context 載入機制
+- ⬜ Gemini 互動問答（Telegram Bot，長輪詢，不需對外 webhook）
+- ⬜ 每日摘要主動推播（Telegram）
+
 
 ---
 
