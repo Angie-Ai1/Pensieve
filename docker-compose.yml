@@ -11,6 +11,8 @@ services:
       - TZ=Asia/Taipei
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
       - NODE_FUNCTION_ALLOW_BUILTIN=child_process,fs,path
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
     volumes:
       - n8n_data:/home/node/.n8n
       - "${CHROME_HISTORY_PATH}:/data/chrome:ro"

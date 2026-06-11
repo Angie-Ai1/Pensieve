@@ -1,0 +1,36 @@
+{
+  "name": "全域錯誤告警",
+  "nodes": [
+    {
+      "id": "error-trigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "parameters": {}
+    },
+    {
+      "id": "send-telegram-alert",
+      "name": "Telegram 告警通知",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [460, 300],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "=n8n workflow 執行失敗\n\nWorkflow：{{ $json.workflow.name }}\n失敗節點：{{ $json.execution.lastNodeExecuted }}\n錯誤訊息：{{ $json.execution.error.message }}\n時間：{{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}",
+        "additionalFields": {}
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          { "node": "Telegram 告警通知", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}
