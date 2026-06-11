@@ -1,5 +1,8 @@
 .env
 
+# 編輯器個人設定
+.vscode/
+
 # Python / Poetry
 .venv/
 __pycache__/
