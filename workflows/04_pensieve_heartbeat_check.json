@@ -1,0 +1,44 @@
+{
+  "id": "pensieveHbCheck04",
+  "name": "pensieve 心跳檢查",
+  "nodes": [
+    {
+      "id": "schedule-hourly",
+      "name": "Schedule Trigger 每小時",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "check-heartbeat",
+      "name": "檢查心跳檔",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const fs = require('fs');\n\nconst HEARTBEAT_PATH = '/vault/.pensieve/heartbeat.txt';\nconst THRESHOLD_MINUTES = 120;\n\nif (!fs.existsSync(HEARTBEAT_PATH)) {\n  throw new Error(`pensieve 心跳檔不存在（${HEARTBEAT_PATH}），pensieve 可能尚未啟動`);\n}\n\nconst lastHeartbeat = fs.readFileSync(HEARTBEAT_PATH, 'utf-8').trim();\nconst ageMinutes = (Date.now() - new Date(lastHeartbeat).getTime()) / 60000;\n\nif (ageMinutes > THRESHOLD_MINUTES) {\n  throw new Error(`pensieve 心跳逾時：最後心跳 ${lastHeartbeat}（距今約 ${Math.round(ageMinutes)} 分鐘，閾值 ${THRESHOLD_MINUTES} 分鐘）`);\n}\n\nreturn [{ json: { lastHeartbeat, ageMinutes } }];"
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger 每小時": {
+      "main": [
+        [
+          { "node": "檢查心跳檔", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  }
+}
