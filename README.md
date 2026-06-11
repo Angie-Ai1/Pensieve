@@ -14,9 +14,12 @@
   - 從瀏覽器歷史擷取當日 YouTube 觀看紀錄與瀏覽文章
   - 用 AI 分類、摘要、找出跨項目的觀察與洞察
   - 產出 Markdown 報告寫入 Obsidian vault
-- **Phase 2（開發中）**：互動式 AI Agent
-  - 以每日彙整資料 + 歷史記錄作為 context
-  - 與使用者討論學習規劃、新聞時事、工作任務、議題發想
+- **Phase 2（已完成）**：互動式 AI Agent
+  - 以 `MEMORY.md`（長期記憶）+ 每日彙整 daily notes 作為 context
+  - Telegram Bot 互動問答 + 每日摘要主動推播
+- **Phase 3（開發中）**：自動化擴充
+  - 全域錯誤監控告警（n8n Error Trigger + Telegram）
+  - 學習吸收模組：YouTube/網頁/PDF 連結 → AI 摘要、整理寫入 Obsidian
 
 ---
 
@@ -50,7 +53,7 @@
 │  │  讀取瀏覽器歷史 → 分類與排除 → videoId 去重        │    │
 │  │       → YouTube videos.list（補 metadata）         │    │
 │  │       → Gemini 彙整（分類/摘要/洞察）              │    │
-│  │       → 整理輸出 → [待開發] 寫入 Obsidian Daily/   │    │
+│  │       → 整理輸出 → 寫入 Obsidian Daily/            │    │
 │  └──────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -105,11 +108,16 @@ docker compose up -d --build
 - ✅ 專案命名 Pensieve、建立 Poetry 環境、上傳至 GitHub（Public）
 ![n8n workflow 測試成功畫面](docs/images/n8n_workflow_test.png)
 
-### Phase 2：互動式 AI Agent — 開發中
+### Phase 2：互動式 AI Agent — 已完成
 
-- ⬜ `MEMORY.md`（長期記憶）+ 每日彙整 context 載入機制
-- ⬜ Gemini 互動問答（Telegram Bot，長輪詢，不需對外 webhook）
-- ⬜ 每日摘要主動推播（Telegram）
+- ✅ `MEMORY.md`（長期記憶，唯讀）+ 近 N 天 daily notes context 載入機制
+- ✅ Gemini 互動問答（Telegram Bot `@pensieve_ag_bot`，長輪詢，不需對外 webhook）
+- ✅ 每日摘要主動推播（23:45 / 23:55 Asia/Taipei）+ `/digest` 手動觸發指令
+
+### Phase 3：自動化擴充 — 進行中
+
+- ✅ 全域錯誤監控告警：n8n Error Trigger → Telegram，主要 workflow 執行失敗時即時通知
+- ⬜ 學習吸收模組：YouTube / 網頁 / PDF 連結 → AI 摘要、整理寫入 Obsidian `Learn/`
 
 
 ---
