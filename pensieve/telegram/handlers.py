@@ -15,7 +15,8 @@ TELEGRAM_MESSAGE_LIMIT = 4096
 
 HELP_TEXT = (
     "我是你的個人 AI 助理，會根據 MEMORY.md 與最近的每日數位足跡彙整與你討論。\n\n"
-    "直接傳訊息給我即可開始對話。\n\n"
+    "直接傳訊息給我即可開始對話。\n"
+    "傳 YouTube 連結、網頁連結或 PDF 檔案，我會幫你整理成學習筆記存到 Learn/。\n\n"
     "指令：\n"
     "/start - 顯示歡迎訊息\n"
     "/help - 顯示這份說明\n"
@@ -23,24 +24,24 @@ HELP_TEXT = (
 )
 
 
-def _is_authorized(update: Update) -> bool:
+def is_authorized(update: Update) -> bool:
     return str(update.effective_chat.id) == config.TELEGRAM_CHAT_ID
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not _is_authorized(update):
+    if not is_authorized(update):
         return
     await update.message.reply_text(HELP_TEXT)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not _is_authorized(update):
+    if not is_authorized(update):
         return
     await update.message.reply_text(HELP_TEXT)
 
 
 async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not _is_authorized(update):
+    if not is_authorized(update):
         return
 
     sent = await jobs.check_and_push_digest(context.bot)
@@ -49,7 +50,7 @@ async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not _is_authorized(update):
+    if not is_authorized(update):
         logger.warning("忽略未授權 chat_id 的訊息: %s", update.effective_chat.id)
         return
 

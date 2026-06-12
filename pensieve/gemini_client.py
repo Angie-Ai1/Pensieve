@@ -10,9 +10,11 @@ GEMINI_API_URL = (
 )
 
 
-async def generate(prompt: str) -> str:
+async def generate(prompt: str, max_output_tokens: int | None = None) -> str:
     """呼叫 Gemini generateContent，回傳第一個候選回應的文字內容。"""
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    if max_output_tokens is not None:
+        payload["generationConfig"] = {"maxOutputTokens": max_output_tokens}
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(

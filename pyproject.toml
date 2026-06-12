@@ -3,7 +3,7 @@ name = "pensieve"
 version = "0.1.0"
 description = "個人每日數位足跡彙整 + 互動式 AI Agent"
 requires-python = ">=3.13,<3.14"
-dependencies = ["python-telegram-bot[job-queue] (>=22.7,<23.0)", "httpx (>=0.28.1,<0.29.0)", "python-dotenv (>=1.2.2,<2.0.0)"]
+dependencies = ["python-telegram-bot[job-queue] (>=22.7,<23.0)", "httpx (>=0.28.1,<0.29.0)", "python-dotenv (>=1.2.2,<2.0.0)", "youtube-transcript-api (>=1.2.4,<2.0.0)", "beautifulsoup4 (>=4.15.0,<5.0.0)", "pypdf (>=6.13.2,<7.0.0)"]
 
 [tool.poetry]
 package-mode = false
