@@ -17,7 +17,7 @@
 - **Phase 2（已完成）**：互動式 AI Agent
   - 以 `MEMORY.md`（長期記憶）+ 每日彙整 daily notes 作為 context
   - Telegram Bot 互動問答 + 每日摘要主動推播
-- **Phase 3（開發中）**：自動化擴充
+- **Phase 3（已完成）**：自動化擴充
   - 全域錯誤監控告警（n8n Error Trigger + Telegram）
   - 學習吸收模組：YouTube/網頁/PDF 連結 → AI 摘要、整理寫入 Obsidian
 
@@ -114,10 +114,11 @@ docker compose up -d --build
 - ✅ Gemini 互動問答（Telegram Bot `@pensieve_ag_bot`，長輪詢，不需對外 webhook）
 - ✅ 每日摘要主動推播（23:45 / 23:55 Asia/Taipei）+ `/digest` 手動觸發指令
 
-### Phase 3：自動化擴充 — 進行中
+### Phase 3：自動化擴充 — 已完成
 
 - ✅ 全域錯誤監控告警：n8n Error Trigger → Telegram，主要 workflow 執行失敗時即時通知
-- ⬜ 學習吸收模組：YouTube / 網頁 / PDF 連結 → AI 摘要、整理寫入 Obsidian `Learn/`
+- ✅ pensieve 常駐化與自我監控：開機自動啟動、心跳檔、推播狀態紀錄與補推播
+- ✅ 學習吸收模組：YouTube / 網頁 / PDF 連結 → AI 摘要、整理寫入 Obsidian `Learn/`，並依主題建立硬連結子資料夾
 
 
 ---
