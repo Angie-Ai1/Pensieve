@@ -88,8 +88,11 @@ async def catch_up_digests(bot: Bot) -> None:
         date_str = f"{target_date:%Y-%m-%d}"
         if date_str in sent:
             continue
-        if await check_and_push_digest(bot, target_date):
-            logger.info("補推播 %s 的每日彙整", date_str)
+        try:
+            if await check_and_push_digest(bot, target_date):
+                logger.info("補推播 %s 的每日彙整", date_str)
+        except Exception:
+            logger.exception("補推播 %s 的每日彙整失敗，略過", date_str)
 
 
 async def heartbeat_job(context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -60,3 +60,20 @@ def build_learning_prompt(title: str, source_type: str, source_url: str, content
     return LEARNING_SYSTEM_PROMPT.format(
         title=title, source_type=source_type, source_url=source_url, content=content
     )
+
+
+MEMORY_UPDATE_PROMPT = """你是使用者的個人記憶整理助理。以下 context 包含使用者目前的 MEMORY.md 內容(「# MEMORY」區塊)，以及近期的每日數位足跡彙整與學習筆記。
+
+請根據近期內容，產出一份 MEMORY.md 的更新草稿：
+- 保留原有的標題與說明文字(包括「由你手動編輯維護」的提示)
+- 沿用現有的章節結構(## 進行中的專案 / ## 偏好 / ## 常關注主題)，不要新增或刪除章節
+- 根據近期內容，在對應章節補充或調整項目；新增的項目在行尾加上「(新增)」，調整既有項目則在行尾加上「(更新)」
+- 若某項近期內容只是一次性事件、不足以判斷是長期偏好或進行中專案，不要加入草稿
+- 如果近期內容沒有值得更新的地方，直接回傳原有的 MEMORY 內容，不需要任何標記
+
+請直接輸出完整的 Markdown 內容(從 `# MEMORY` 開始)，不要加上程式碼區塊標記或額外說明文字。"""
+
+
+def build_memory_update_prompt(context: str) -> str:
+    """組合記憶更新草稿 prompt：context 已含現有 MEMORY.md + 近期 daily notes/學習筆記。"""
+    return f"{MEMORY_UPDATE_PROMPT}\n\n{context}"

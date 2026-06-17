@@ -2,16 +2,21 @@
 
 import logging
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from pensieve import config, gemini_client, prompts
 from pensieve.context.daily_notes import build_context_bundle
+from pensieve.context.memory import load_memory
+from pensieve.memory_update import generate_memory_draft, write_memory
 from pensieve.telegram import jobs
 
 logger = logging.getLogger(__name__)
 
 TELEGRAM_MESSAGE_LIMIT = 4096
+
+MEMORY_UPDATE_APPLY = "memory_update:apply"
+MEMORY_UPDATE_CANCEL = "memory_update:cancel"
 
 HELP_TEXT = (
     "我是你的個人 AI 助理，會根據 MEMORY.md 與最近的每日數位足跡彙整與你討論。\n\n"
@@ -20,7 +25,8 @@ HELP_TEXT = (
     "指令：\n"
     "/start - 顯示歡迎訊息\n"
     "/help - 顯示這份說明\n"
-    "/digest - 顯示今日重點摘要"
+    "/digest - 顯示今日重點摘要\n"
+    "/memory_update - 產生 MEMORY.md 更新草稿，確認後直接更新 MEMORY.md"
 )
 
 
@@ -47,6 +53,53 @@ async def digest(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     sent = await jobs.check_and_push_digest(context.bot)
     if not sent:
         await update.message.reply_text("今天的彙整尚未產生，稍後再試試看。")
+
+
+async def memory_update(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_authorized(update):
+        return
+
+    status_message = await update.message.reply_text("正在產生 MEMORY.md 更新草稿...")
+    draft = await generate_memory_draft()
+
+    if draft.strip() == load_memory().strip():
+        await status_message.edit_text("目前沒有需要更新的內容。")
+        return
+
+    await status_message.edit_text("已產生更新草稿，預覽如下：")
+    for i in range(0, len(draft), TELEGRAM_MESSAGE_LIMIT):
+        await update.message.reply_text(draft[i : i + TELEGRAM_MESSAGE_LIMIT])
+
+    context.bot_data["memory_draft"] = draft
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("套用更新", callback_data=MEMORY_UPDATE_APPLY),
+                InlineKeyboardButton("取消", callback_data=MEMORY_UPDATE_CANCEL),
+            ]
+        ]
+    )
+    await update.message.reply_text("是否套用以上更新到 MEMORY.md？", reply_markup=keyboard)
+
+
+async def memory_update_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not is_authorized(update):
+        return
+
+    await query.answer()
+    draft = context.bot_data.pop("memory_draft", None)
+
+    if query.data == MEMORY_UPDATE_CANCEL:
+        await query.edit_message_text("已取消，MEMORY.md 未變更。")
+        return
+
+    if draft is None:
+        await query.edit_message_text("找不到草稿內容，請重新執行 /memory_update。")
+        return
+
+    write_memory(draft)
+    await query.edit_message_text("已套用更新，MEMORY.md 已更新完成。")
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

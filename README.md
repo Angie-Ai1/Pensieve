@@ -119,6 +119,7 @@ docker compose up -d --build
 - ✅ 全域錯誤監控告警：n8n Error Trigger → Telegram，主要 workflow 執行失敗時即時通知
 - ✅ pensieve 常駐化與自我監控：開機自動啟動、心跳檔、推播狀態紀錄與補推播
 - ✅ 學習吸收模組：YouTube / 網頁 / PDF 連結 → AI 摘要、整理寫入 Obsidian `Learn/`，並依主題建立硬連結子資料夾
+- ✅ `/memory_update` 指令：根據近期 daily notes + 學習筆記，由 Gemini 產生 `MEMORY.md` 更新草稿，Telegram inline 按鈕確認後直接寫回 vault
 
 
 ---

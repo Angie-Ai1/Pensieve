@@ -2,7 +2,7 @@
 
 import logging
 
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, MessageHandler, filters
 
 from pensieve import config, state
 from pensieve.telegram import handlers, jobs, learning_handler
@@ -28,6 +28,13 @@ def main() -> None:
     application.add_handler(CommandHandler("start", handlers.start))
     application.add_handler(CommandHandler("help", handlers.help_command))
     application.add_handler(CommandHandler("digest", handlers.digest))
+    application.add_handler(CommandHandler("memory_update", handlers.memory_update))
+    application.add_handler(
+        CallbackQueryHandler(
+            handlers.memory_update_confirm,
+            pattern=f"^{handlers.MEMORY_UPDATE_APPLY}$|^{handlers.MEMORY_UPDATE_CANCEL}$",
+        )
+    )
     application.add_handler(
         MessageHandler(
             (filters.TEXT & ~filters.COMMAND) & (filters.Entity("url") | filters.Entity("text_link")),
