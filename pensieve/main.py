@@ -43,6 +43,7 @@ def main() -> None:
     )
     application.add_handler(MessageHandler(filters.Document.PDF, learning_handler.handle_pdf_document))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.handle_message))
+    application.add_error_handler(handlers.error_handler)
 
     for digest_time in jobs.DAILY_DIGEST_TIMES:
         application.job_queue.run_daily(jobs.run_daily, time=digest_time)

@@ -113,3 +113,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     for i in range(0, len(reply), TELEGRAM_MESSAGE_LIMIT):
         await update.message.reply_text(reply[i : i + TELEGRAM_MESSAGE_LIMIT])
+
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """全域錯誤處理：避免任何 handler 例外時完全沒有回覆(例如 Gemini API 503)。"""
+    logger.error("處理 update 時發生未預期錯誤", exc_info=context.error)
+    if isinstance(update, Update) and update.effective_chat:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="處理時發生錯誤，請稍後再試。",
+        )
