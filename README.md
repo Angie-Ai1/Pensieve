@@ -95,6 +95,57 @@ docker compose up -d --build
 > ⚠️ `docker-compose.yml` 中的 volume 路徑（Chrome/Edge History、Obsidian vault）透過 `.env` 設定
 >（範本見 `.env.example`），換機器或換使用者時只需更新 `.env`，不需修改 `docker-compose.yml`。
 
+### pensieve（互動式 Agent）設定
+
+Phase 2/3 的 Telegram 互動 Bot 是獨立於 n8n 的 Python 服務，需另外設定：
+
+**前置需求**
+
+| 工具 | 用途 |
+|---|---|
+| Python 3.13（建議用 [uv](https://docs.astral.sh/uv/) 安裝指定版本，不依賴系統內建版本） | 執行 `pensieve` 服務 |
+| [Poetry](https://python-poetry.org/) | 管理 Python 依賴 |
+| Telegram 帳號 | 透過 [@BotFather](https://t.me/BotFather) 申請屬於你自己的 Bot Token |
+
+**設定步驟**
+
+```bash
+# 1. 安裝指定版本 Python（避免系統版本不符合 pyproject.toml 的 >=3.13,<3.14 限制）
+uv python install 3.13
+
+# 2. 建立虛擬環境並交給 Poetry 管理
+$(uv python find 3.13) -m venv .venv
+poetry env use ./.venv/bin/python
+poetry install
+```
+
+接著編輯 `.env`，填入以下欄位（範本見 `.env.example` 的「Phase 2：互動式 AI Agent」區塊）：
+
+- `TELEGRAM_BOT_TOKEN`：跟 [@BotFather](https://t.me/BotFather) 對話 `/newbot` 取得
+- `TELEGRAM_CHAT_ID`：你自己跟剛建立的 Bot 對話後，透過 `https://api.telegram.org/bot<TOKEN>/getUpdates` 可查到的 chat id
+- `GEMINI_API_KEY`：可沿用申請 n8n 用的同一把 Gemini API Key
+- `OBSIDIAN_VAULT_PATH`：跟 `.env` 給 n8n 用的同一個 Obsidian vault 路徑
+
+手動啟動測試：
+
+```bash
+poetry run python -m pensieve.main
+```
+
+成功啟動後，在 Telegram 跟你的 Bot 對話即可互動問答；傳送 YouTube/網頁連結或 PDF 檔案會觸發學習吸收模組。
+
+> ⚠️ `pensieve` 用 Telegram **long-polling** 收訊息，同一個 Bot Token **只能有一個地方在跑**，
+> 兩邊同時執行會被 Telegram 判定 `409 Conflict`。開發測試時建議另外申請一個獨立的測試 Bot，
+> 不要拿正式使用的 Bot Token 重複啟動。
+
+**常駐執行（依你的作業系統選擇）**
+
+`pensieve` 本身沒有內建排程器，需要交給作業系統的服務機制讓它開機自動啟動、當機自動重啟：
+
+- **Linux / WSL（systemd）**：`scripts/pensieve.service` 是現成範本，但 `User`/`WorkingDirectory`/`ExecStart` 是機器專屬路徑，套用前請先改成你自己的使用者與專案路徑，再 `sudo cp` 到 `/etc/systemd/system/` 並 `systemctl enable --now pensieve`
+- **Windows**：用工作排程器（Task Scheduler）註冊一個登入時啟動、失敗自動重試的工作，執行 `poetry run python -m pensieve.main`
+- **macOS**：用 `launchd`，建立對應的 `.plist` 並 `launchctl load`
+
 ---
 
 ## 目前進度
