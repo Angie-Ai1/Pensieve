@@ -1,3 +1,6 @@
+# 注意：User/WorkingDirectory/ExecStart 是機器專屬路徑，目前內容對應「舊電腦」
+# (24 小時開機的伺服器，正式運行 pensieve)。若在其他機器使用，套用前請先改成
+# 該機器實際的使用者與專案路徑。
 [Unit]
 Description=Pensieve Telegram bot daemon
 After=network-online.target
@@ -5,9 +8,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=angie
-WorkingDirectory=/home/angie/workspace/02_Side_Projects/Pensieve
-ExecStart=/home/angie/workspace/02_Side_Projects/Pensieve/.venv/bin/python -m pensieve.main
+User=angie_ai
+WorkingDirectory=/home/angie_ai/workspace/AI_Agent
+ExecStart=/home/angie_ai/workspace/AI_Agent/.venv/bin/python -m pensieve.main
 Restart=always
 RestartSec=60
 Environment=PYTHONUNBUFFERED=1
