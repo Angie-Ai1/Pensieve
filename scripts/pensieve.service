@@ -1,0 +1,16 @@
+[Unit]
+Description=Pensieve Telegram bot daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=angie
+WorkingDirectory=/home/angie/workspace/02_Side_Projects/Pensieve
+ExecStart=/home/angie/workspace/02_Side_Projects/Pensieve/.venv/bin/python -m pensieve.main
+Restart=always
+RestartSec=60
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
