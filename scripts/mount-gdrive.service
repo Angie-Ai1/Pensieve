@@ -1,0 +1,15 @@
+# 注意：ExecStart 路徑為機器專屬路徑，目前內容對應「舊電腦」
+# (24 小時開機的伺服器)。若在其他機器使用，套用前請先改成該機器實際的專案路徑。
+[Unit]
+Description=Mount Google Drive (G:) virtual disk into WSL at /mnt/g
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+ExecStart=/bin/bash /home/angie_ai/workspace/AI_Agent/scripts/mount_gdrive.sh
+
+[Install]
+WantedBy=multi-user.target
