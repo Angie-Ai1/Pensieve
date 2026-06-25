@@ -23,6 +23,8 @@ TELEGRAM_MESSAGE_LIMIT = 4096
 # 對應 n8n 23:30 的執行時間留出緩衝
 DAILY_DIGEST_TIMES = (time(23, 45, tzinfo=TAIPEI_TZ), time(23, 55, tzinfo=TAIPEI_TZ))
 
+MORNING_QUOTE_TIME = time(8, 0, tzinfo=TAIPEI_TZ)
+
 # 啟動補推播時，往回檢查的天數（仿 n8n 09:00 補跑邏輯）
 DIGEST_CATCHUP_DAYS = 7
 
@@ -102,3 +104,14 @@ async def catch_up_digests(bot: Bot) -> None:
 async def heartbeat_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     """JobQueue 排程 callback：定期寫入心跳檔。"""
     state.write_heartbeat()
+
+
+async def send_morning_quote(bot: Bot) -> None:
+    """產生並推播一句心靈雞湯語錄。"""
+    quote = await gemini_client.generate(prompts.MORNING_QUOTE_PROMPT)
+    await bot.send_message(chat_id=config.TELEGRAM_CHAT_ID, text=quote)
+
+
+async def run_morning_quote(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """JobQueue 排程 callback：執行心靈雞湯推播。"""
+    await send_morning_quote(context.bot)

@@ -15,6 +15,13 @@ def build_prompt(context: str, user_message: str) -> str:
     return f"{system_prompt}\n\n使用者問題：{user_message}"
 
 
+MORNING_QUOTE_PROMPT = (
+    "請給我一句溫暖、激勵人心的繁體中文心靈雞湯語錄，"
+    "搭配一兩句簡短的鼓勵或延伸說明，整體控制在 100 字以內，"
+    "不要加上引號或多餘的標題文字。"
+)
+
+
 DAILY_REVIEW_PROMPT = (
     "請用口語化、親切的繁體中文，幫我回顧今天的數位足跡內容，"
     "並在最後提出一兩個延伸問題，引導我多分享一些想法或感受。"

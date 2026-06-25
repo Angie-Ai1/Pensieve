@@ -48,6 +48,8 @@ def main() -> None:
     for digest_time in jobs.DAILY_DIGEST_TIMES:
         application.job_queue.run_daily(jobs.run_daily, time=digest_time)
 
+    application.job_queue.run_daily(jobs.run_morning_quote, time=jobs.MORNING_QUOTE_TIME)
+
     application.job_queue.run_repeating(
         jobs.heartbeat_job,
         interval=state.HEARTBEAT_INTERVAL_SECONDS,
