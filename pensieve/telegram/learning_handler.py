@@ -1,14 +1,16 @@
 """學習吸收 handler：偵測連結/PDF，擷取內容後經 Gemini 整理並寫入 Learn/ 筆記。"""
 
 import asyncio
+import io
 import logging
 import tempfile
+import zipfile
 from pathlib import Path
 
 from telegram import Message, Update
 from telegram.ext import ContextTypes
 
-from pensieve import gemini_client, prompts
+from pensieve import config, gemini_client, prompts
 from pensieve.learning import extractors, notes
 from pensieve.telegram.handlers import is_authorized
 
@@ -17,6 +19,7 @@ logger = logging.getLogger(__name__)
 PDF_SIZE_LIMIT_BYTES = 20 * 1024 * 1024
 LEARNING_MAX_OUTPUT_TOKENS = 8192
 PROCESSING_MESSAGE = "處理中，請稍候..."
+EXPORT_ZIP_FILENAME = "learning_notes.zip"
 
 
 def _extract_url(message: Message) -> str | None:
@@ -35,6 +38,7 @@ async def _summarize_and_save(
     markdown = await gemini_client.generate(prompt, max_output_tokens=LEARNING_MAX_OUTPUT_TOKENS)
     relative_path = notes.write_learning_note(title, source_url, markdown)
     await status_message.edit_text(f"已寫入：{relative_path.as_posix()}")
+    await status_message.reply_document(document=config.OBSIDIAN_VAULT_PATH / relative_path)
 
 
 async def handle_link_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -61,6 +65,33 @@ async def handle_link_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception:
         logger.exception("學習吸收處理失敗：%s", url)
         await status_message.edit_text("處理過程中發生錯誤，請稍後再試。")
+
+
+async def export_notes(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/export [關鍵字]：無關鍵字匯出全部學習筆記，有關鍵字依檔名篩選；單筆直接傳檔案，多筆打包成 zip。"""
+    if not is_authorized(update):
+        return
+
+    keyword = " ".join(context.args).strip() if context.args else ""
+    learn_dir = config.OBSIDIAN_VAULT_PATH / notes.LEARN_DIR
+    all_notes = sorted(learn_dir.glob("*.md")) if learn_dir.is_dir() else []
+    matches = [p for p in all_notes if keyword.lower() in p.stem.lower()] if keyword else all_notes
+
+    if not matches:
+        message = f"找不到符合「{keyword}」的學習筆記。" if keyword else "目前還沒有任何學習筆記。"
+        await update.message.reply_text(message)
+        return
+
+    if len(matches) == 1:
+        await update.message.reply_document(document=matches[0])
+        return
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in matches:
+            zf.write(path, arcname=path.name)
+    buffer.seek(0)
+    await update.message.reply_document(document=buffer, filename=EXPORT_ZIP_FILENAME)
 
 
 async def handle_pdf_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

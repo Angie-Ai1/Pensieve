@@ -26,7 +26,8 @@ HELP_TEXT = (
     "/start - 顯示歡迎訊息\n"
     "/help - 顯示這份說明\n"
     "/digest - 顯示今日重點摘要\n"
-    "/memory_update - 產生 MEMORY.md 更新草稿，確認後直接更新 MEMORY.md"
+    "/memory_update - 產生 MEMORY.md 更新草稿，確認後直接更新 MEMORY.md\n"
+    "/export [關鍵字] - 匯出學習筆記(.md)，無關鍵字匯出全部，符合多筆會打包成 zip"
 )
 
 
