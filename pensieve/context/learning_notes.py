@@ -11,6 +11,7 @@ NOTE_PREFIX = "[Learn] "
 
 def _parse_frontmatter(content: str) -> dict[str, str]:
     """解析 `---` 區塊內的簡單 `key: value` 欄位（不需 PyYAML）。"""
+    content = content.lstrip("\ufeff")
     if not content.startswith("---\n"):
         return {}
 

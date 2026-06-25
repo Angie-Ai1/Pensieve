@@ -56,7 +56,7 @@ def write_learning_note(title: str, source_url: str, markdown: str) -> Path:
         "  - learning\n"
         "---\n\n"
     )
-    file_path.write_text(frontmatter + body, encoding="utf-8")
+    file_path.write_text(frontmatter + body, encoding="utf-8-sig")
 
     topic_dir = learn_dir / safe_filename(topic)
     topic_dir.mkdir(parents=True, exist_ok=True)

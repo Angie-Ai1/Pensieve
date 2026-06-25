@@ -67,6 +67,17 @@ async def _fetch_youtube_title(url: str, video_id: str) -> str:
             return f"YouTube {video_id}"
 
 
+def _fetch_transcript(video_id: str):
+    """先找偏好語言的字幕；找不到就改抓任一可用語言（YouTube 的語言代碼變體很多，
+    例如繁中可能是 zh-Hant 也可能是 zh-TW，與其窮舉不如直接 fallback）。"""
+    transcript_list = YouTubeTranscriptApi().list(video_id)
+    try:
+        transcript = transcript_list.find_transcript(YOUTUBE_TRANSCRIPT_LANGUAGES)
+    except NoTranscriptFound:
+        transcript = next(iter(transcript_list))
+    return transcript.fetch()
+
+
 async def extract_youtube(url: str) -> tuple[str, str]:
     """逐字稿：youtube-transcript-api；標題：oEmbed。"""
     video_id = _extract_video_id(url)
@@ -74,9 +85,7 @@ async def extract_youtube(url: str) -> tuple[str, str]:
         raise ExtractionError("無法從連結中解析 YouTube 影片 ID。")
 
     try:
-        transcript = await asyncio.to_thread(
-            YouTubeTranscriptApi().fetch, video_id, languages=list(YOUTUBE_TRANSCRIPT_LANGUAGES)
-        )
+        transcript = await asyncio.to_thread(_fetch_transcript, video_id)
     except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable) as exc:
         raise ExtractionError("這部影片沒有可用的字幕/逐字稿，無法擷取內容。") from exc
 
