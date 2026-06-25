@@ -57,6 +57,7 @@ async def check_and_push_digest(bot: Bot, target_date: date | None = None) -> bo
     if target_date is None:
         target_date = datetime.now(TAIPEI_TZ).date()
 
+    date_str = f"{target_date:%Y-%m-%d}"
     content = read_daily_note(target_date)
     if content is None:
         return False
@@ -69,12 +70,15 @@ async def check_and_push_digest(bot: Bot, target_date: date | None = None) -> bo
     message = f"{HIGHLIGHTS_HEADING}\n\n{highlights}\n\n完整報告：{relative_path.as_posix()}"
     await bot.send_message(chat_id=config.TELEGRAM_CHAT_ID, text=message)
 
-    state.mark_sent(f"{target_date:%Y-%m-%d}")
+    state.mark_sent(date_str)
     return True
 
 
 async def run_daily(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """JobQueue 排程 callback：執行每日推播檢查。"""
+    """JobQueue 排程 callback：執行每日推播檢查。同一天若已推播過則跳過，避免 23:45/23:55 雙重排程造成重複推播。"""
+    today_str = f"{datetime.now(TAIPEI_TZ).date():%Y-%m-%d}"
+    if today_str in state.load_sent_dates():
+        return
     await check_and_push_digest(context.bot)
 
 
