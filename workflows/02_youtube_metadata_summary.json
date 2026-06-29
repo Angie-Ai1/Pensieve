@@ -1,4 +1,5 @@
 {
+  "id": "IrWOYfYbdY1FJ60p",
   "name": "Daily Digest - 02 YouTube metadata 補全 + AI 彙整(Gemini)",
   "nodes": [
     {
@@ -14,7 +15,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const { execSync } = require('child_process');\nconst fs = require('fs');\n\nconst CHROME_EPOCH_OFFSET_US = 11644473600000000;\nconst TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;\n\nfunction getTargetDate() {\n  try {\n    const v = $('Loop Over Items').first().json.targetDate;\n    if (v) return v;\n  } catch (e) {}\n  return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);\n}\n\nconst targetDate = getTargetDate();\nconst [ty, tm, td] = targetDate.split('-').map(Number);\n\nconst startUtcMs = Date.UTC(ty, tm - 1, td, 0, 0, 0) - TAIPEI_OFFSET_MS;\nconst endUtcMs = startUtcMs + 24 * 60 * 60 * 1000;\n\nconst startChrome = startUtcMs * 1000 + CHROME_EPOCH_OFFSET_US;\nconst endChrome = endUtcMs * 1000 + CHROME_EPOCH_OFFSET_US;\n\nconst sources = [\n  { name: 'chrome', src: '/data/chrome/History', tmp: '/tmp/chrome_history_copy.db' },\n  { name: 'edge', src: '/data/edge/History', tmp: '/tmp/edge_history_copy.db' },\n];\n\nconst results = [];\n\nfor (const { name, src, tmp } of sources) {\n  try {\n    fs.copyFileSync(src, tmp);\n    const sql = `SELECT url, title, last_visit_time, visit_count FROM urls WHERE last_visit_time BETWEEN ${startChrome} AND ${endChrome} ORDER BY last_visit_time DESC`;\n    const output = execSync(`sqlite3 -json \"${tmp}\" \"${sql}\"`, { encoding: 'utf8', maxBuffer: 1024 * 1024 * 20 });\n    const rows = output.trim() ? JSON.parse(output) : [];\n    for (const row of rows) {\n      results.push({\n        json: {\n          source: name,\n          url: row.url,\n          title: row.title,\n          visitCount: row.visit_count,\n          lastVisitTime: new Date((row.last_visit_time - CHROME_EPOCH_OFFSET_US) / 1000).toISOString(),\n        },\n      });\n    }\n  } catch (err) {\n    results.push({ json: { source: name, _error: String(err.message || err) } });\n  } finally {\n    if (fs.existsSync(tmp)) fs.unlinkSync(tmp);\n  }\n}\n\nreturn results;"
+        "jsCode": "const { execSync } = require('child_process');\nconst fs = require('fs');\n\nconst CHROME_EPOCH_OFFSET_US = 11644473600000000;\nconst TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;\n\nfunction getTargetDate() {\n  try {\n    const v = $('Loop Over Items').first().json.targetDate;\n    if (v) return v;\n  } catch (e) {}\n  return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);\n}\n\nconst targetDate = getTargetDate();\nconst [ty, tm, td] = targetDate.split('-').map(Number);\n\nconst startUtcMs = Date.UTC(ty, tm - 1, td, 0, 0, 0) - TAIPEI_OFFSET_MS;\nconst endUtcMs = startUtcMs + 24 * 60 * 60 * 1000;\n\nconst startChrome = startUtcMs * 1000 + CHROME_EPOCH_OFFSET_US;\nconst endChrome = endUtcMs * 1000 + CHROME_EPOCH_OFFSET_US;\n\nconst sources = [\n  { name: 'chrome', src: '/data/chrome/History', tmp: '/tmp/chrome_history_copy.db' },\n  { name: 'edge', src: '/data/edge/History', tmp: '/tmp/edge_history_copy.db' },\n  { name: 'chrome', src: '/data/new_pc/chrome_History', tmp: '/tmp/new_pc_chrome_history_copy.db' },\n  { name: 'edge', src: '/data/new_pc/edge_History', tmp: '/tmp/new_pc_edge_history_copy.db' },\n];\n\nconst results = [];\n\nfor (const { name, src, tmp } of sources) {\n  try {\n    fs.copyFileSync(src, tmp);\n    const sql = `SELECT url, title, last_visit_time, visit_count FROM urls WHERE last_visit_time BETWEEN ${startChrome} AND ${endChrome} ORDER BY last_visit_time DESC`;\n    const output = execSync(`sqlite3 -json \"${tmp}\" \"${sql}\"`, { encoding: 'utf8', maxBuffer: 1024 * 1024 * 20 });\n    const rows = output.trim() ? JSON.parse(output) : [];\n    for (const row of rows) {\n      results.push({\n        json: {\n          source: name,\n          url: row.url,\n          title: row.title,\n          visitCount: row.visit_count,\n          lastVisitTime: new Date((row.last_visit_time - CHROME_EPOCH_OFFSET_US) / 1000).toISOString(),\n        },\n      });\n    }\n  } catch (err) {\n    results.push({ json: { source: name, _error: String(err.message || err) } });\n  } finally {\n    if (fs.existsSync(tmp)) fs.unlinkSync(tmp);\n  }\n}\n\nreturn results;"
       },
       "id": "read-history",
       "name": "讀取瀏覽器歷史",
@@ -91,7 +92,13 @@
       "position": [
         1344,
         304
-      ]
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "34GfppIsRm5Ojfs5",
+          "name": "YouTube Data API"
+        }
+      }
     },
     {
       "parameters": {
@@ -146,7 +153,13 @@
       "position": [
         2000,
         304
-      ]
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "drGZW10bszUtZjfK",
+          "name": "Query Auth account"
+        }
+      }
     },
     {
       "parameters": {

@@ -17,8 +17,10 @@ services:
       - n8n_data:/home/node/.n8n
       - "${CHROME_HISTORY_PATH}:/data/chrome:ro"
       - "${EDGE_HISTORY_PATH}:/data/edge:ro"
+      - "${NEW_PC_HISTORY_SYNC_PATH}:/data/new_pc:ro"
       - "${OBSIDIAN_VAULT_PATH}:/vault"
       - ./config:/config:ro
+      - ./workflows:/workflow:ro
 
 volumes:
   n8n_data:
