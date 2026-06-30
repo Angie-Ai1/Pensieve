@@ -6,8 +6,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from pensieve import config, gemini_client, prompts
+from pensieve.context.conversation import append_turn, format_recent
 from pensieve.context.daily_notes import build_context_bundle
 from pensieve.context.memory import load_memory
+from pensieve.context.persona import load_persona
 from pensieve.memory_update import generate_memory_draft, write_memory
 from pensieve.telegram import jobs
 
@@ -109,8 +111,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     bundle = build_context_bundle()
-    prompt = prompts.build_prompt(bundle, update.message.text)
+    user_text = update.message.text
+    prompt = prompts.build_prompt(
+        bundle, user_text, persona=load_persona(), history=format_recent()
+    )
     reply = await gemini_client.generate(prompt)
+
+    append_turn(user_text, reply)
 
     for i in range(0, len(reply), TELEGRAM_MESSAGE_LIMIT):
         await update.message.reply_text(reply[i : i + TELEGRAM_MESSAGE_LIMIT])

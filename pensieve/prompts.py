@@ -1,18 +1,28 @@
 """互動問答用的 system prompt 模板。"""
 
-SYSTEM_PROMPT_TEMPLATE = """你是使用者的個人 AI 助理，協助回顧每日數位足跡（YouTube 觀看紀錄、瀏覽文章）並進行討論。
+DEFAULT_PERSONA = "你是使用者的個人 AI 助理，協助回顧每日數位足跡（YouTube 觀看紀錄、瀏覽文章）並進行討論。"
 
-以下是使用者的長期記憶與近期每日彙整紀錄：
+SYSTEM_PROMPT_TEMPLATE = """{persona}
+
+以下是你對使用者的長期記憶與近期每日彙整紀錄：
 
 {context}
+{history}
+請依據你的人格設定與上述記憶，以自然、口語化的繁體中文回應使用者。若記憶中找不到相關資訊，請誠實告知，不要編造。"""
 
-請根據以上內容，以自然、口語化的繁體中文回答使用者的問題。若內容中找不到相關資訊，請誠實告知，不要編造。"""
 
-
-def build_prompt(context: str, user_message: str) -> str:
-    """組合 system prompt + context + 使用者訊息為單一 prompt。"""
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(context=context)
-    return f"{system_prompt}\n\n使用者問題：{user_message}"
+def build_prompt(context: str, user_message: str, persona: str = "", history: str = "") -> str:
+    """組合 system prompt（人格 + 記憶 context + 最近對話）+ 使用者最新訊息為單一 prompt。"""
+    persona_text = persona.strip() or DEFAULT_PERSONA
+    history_block = (
+        f"\n以下是你們最近的對話（延續上下文用）：\n\n{history.strip()}\n"
+        if history.strip()
+        else ""
+    )
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+        persona=persona_text, context=context, history=history_block
+    )
+    return f"{system_prompt}\n\n使用者最新訊息：{user_message}"
 
 
 MORNING_QUOTE_PROMPT = (

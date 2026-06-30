@@ -13,6 +13,7 @@ from pensieve.context.daily_notes import (
     daily_note_path,
     read_daily_note,
 )
+from pensieve.context.persona import load_persona
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ async def _send_chunked(bot: Bot, text: str) -> None:
 async def _generate_daily_review() -> str:
     """以互動問答的 system prompt + context，產生口語化每日回顧。"""
     bundle = build_context_bundle()
-    prompt = prompts.build_prompt(bundle, prompts.DAILY_REVIEW_PROMPT)
+    prompt = prompts.build_prompt(bundle, prompts.DAILY_REVIEW_PROMPT, persona=load_persona())
     return await gemini_client.generate(prompt)
 
 
