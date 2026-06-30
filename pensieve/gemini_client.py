@@ -6,7 +6,9 @@ import httpx
 
 from pensieve import config
 
-GEMINI_MODEL = "gemini-2.5-flash"
+# 改用 flash-lite：免費方案每日額度遠高於 gemini-2.5-flash（後者免費僅 20 次/日），
+# 且為獨立額度池，適合 pensieve 互動對話這類高頻、輕量的呼叫。
+GEMINI_MODEL = "gemini-2.5-flash-lite"
 GEMINI_API_URL = (
     f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 )
