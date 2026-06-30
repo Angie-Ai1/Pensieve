@@ -63,6 +63,11 @@ def append_entry(topic: str, summary: str, when: "datetime.date | None" = None) 
     path = topic_path(topic)
     path.parent.mkdir(parents=True, exist_ok=True)
 
+    # 若該主題已在暖存區、現在又被聊到，先救回頂層接續寫，避免活躍/暖存兩份分歧。
+    archived = path.parent / ARCHIVE_DIRNAME / path.name
+    if not path.exists() and archived.exists():
+        archived.rename(path)
+
     bullets = _existing_bullets(path.read_text(encoding="utf-8")) if path.exists() else []
     bullets.append(f"- [{when:%Y-%m-%d}] {summary.strip()}")
 
@@ -108,3 +113,65 @@ def load_active(days: int) -> str:
         parts.append(body.strip())
 
     return "\n\n".join(parts)
+
+
+def archive_stale_topics(days: int) -> int:
+    """把超過 days 天沒更新的活躍主題移進 _archive/；回傳移動的主題數。"""
+    directory = _memories_dir()
+    if not directory.is_dir():
+        return 0
+
+    cutoff = datetime.now(TAIPEI_TZ).date() - timedelta(days=days)
+    archive_dir = directory / ARCHIVE_DIRNAME
+    moved = 0
+    for path in sorted(directory.glob("*.md")):
+        fields, _ = _strip_frontmatter(path.read_text(encoding="utf-8"))
+        try:
+            updated = datetime.strptime(fields.get("updated", ""), "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if updated >= cutoff:
+            continue
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        target = archive_dir / path.name
+        if target.exists():
+            target.unlink()
+        path.rename(target)
+        moved += 1
+
+    return moved
+
+
+def _bigrams(text: str) -> set[str]:
+    """取出字串的 2-gram 集合（去空白），供主題與訊息的關鍵字比對。"""
+    cleaned = re.sub(r"\s", "", text)
+    return {cleaned[i : i + 2] for i in range(len(cleaned) - 1)}
+
+
+def _match_score(topic: str, message: str) -> int:
+    """主題與訊息的相關度：完整命中（主題名為訊息子字串）給高分，否則為共用 2-gram 數。"""
+    if len(topic) >= 2 and topic in message:
+        return 1000
+    return len(_bigrams(topic) & _bigrams(message))
+
+
+def _topic_matches(topic: str, message: str) -> bool:
+    """判斷使用者訊息是否提到某暖存主題（完整命中，或至少共用 1 個 2-gram）。"""
+    return _match_score(topic, message) > 0
+
+
+def load_archived_matches(message: str, limit: int = 3) -> str:
+    """掃描 _archive/，回傳被訊息「提到」的暖存主題內容（喚回）；依相關度取前 limit 個。"""
+    archive_dir = _memories_dir() / ARCHIVE_DIRNAME
+    if not archive_dir.is_dir():
+        return ""
+
+    scored: list[tuple[int, str]] = []
+    for path in sorted(archive_dir.glob("*.md")):
+        score = _match_score(path.stem, message)
+        if score > 0:
+            _, body = _strip_frontmatter(path.read_text(encoding="utf-8"))
+            scored.append((score, body.strip()))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return "\n\n".join(body for _, body in scored[:limit])

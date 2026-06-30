@@ -13,6 +13,7 @@ from pensieve.context.daily_notes import (
     daily_note_path,
     read_daily_note,
 )
+from pensieve.context import topic_memory
 from pensieve.context.persona import load_persona
 
 logger = logging.getLogger(__name__)
@@ -106,11 +107,18 @@ async def catch_up_digests(bot: Bot) -> None:
 
 
 async def run_topic_extraction(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """JobQueue 排程 callback：半夜把對話 buffer 萃取進主題記憶。失敗時保留 buffer 下次重試。"""
+    """JobQueue 排程 callback：半夜把對話 buffer 萃取進主題記憶，並把久未更新的主題移入暖存區。"""
     try:
         await memory_extract.extract_buffer_to_topics()
     except Exception:
         logger.exception("主題萃取 job 失敗，保留 buffer 待下次重試")
+
+    try:
+        moved = topic_memory.archive_stale_topics(config.DAILY_NOTES_LOOKBACK_DAYS)
+        if moved:
+            logger.info("移入暖存區 %d 個主題", moved)
+    except Exception:
+        logger.exception("暖存歸檔失敗")
 
 
 async def heartbeat_job(context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -10,6 +10,7 @@ from pensieve.context.conversation import append_turn, format_recent
 from pensieve.context.daily_notes import build_context_bundle
 from pensieve.context.memory import load_memory
 from pensieve.context.persona import load_persona
+from pensieve.context.topic_memory import load_archived_matches
 from pensieve.memory_extract import extract_buffer_to_topics
 from pensieve.memory_update import generate_memory_draft, write_memory
 from pensieve.telegram import jobs
@@ -132,6 +133,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     bundle = build_context_bundle()
     user_text = update.message.text
+
+    # 暖存主題喚回：使用者訊息若提到久未聊的主題，把該主題從 _archive/ 撈回注入。
+    recalled = load_archived_matches(user_text)
+    if recalled:
+        bundle = f"{bundle}\n\n---\n\n# 喚回的相關記憶（你之前聊過）\n\n{recalled}"
+
     prompt = prompts.build_prompt(
         bundle, user_text, persona=load_persona(), history=format_recent()
     )
