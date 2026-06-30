@@ -89,3 +89,25 @@ MEMORY_UPDATE_PROMPT = """你是使用者的個人記憶整理助理。以下 co
 def build_memory_update_prompt(context: str) -> str:
     """組合記憶更新草稿 prompt：context 已含現有 MEMORY.md + 近期 daily notes/學習筆記。"""
     return f"{MEMORY_UPDATE_PROMPT}\n\n{context}"
+
+
+TOPIC_EXTRACTION_PROMPT = """你是使用者的個人記憶整理助理。以下是今天使用者與你（pensieve）的對話內容。
+
+請把這段對話整理成「主題式記憶」：依內容歸納出 1 至數個主題，每個主題寫一句到數句的重點摘要（發生什麼事、結論、使用者的想法或偏好）。
+
+已存在的主題清單（若這次對話延續其中某個主題，請沿用「完全相同」的主題名稱，不要另創近義主題）：
+{existing_topics}
+
+只輸出 JSON 陣列，格式如下，不要任何其他文字、說明或程式碼區塊標記：
+[{{"topic": "主題名稱", "summary": "這次對話關於此主題的重點摘要"}}]
+
+若這段對話沒有值得長期記住的內容（例如只是打招呼或閒聊），回傳空陣列 []。
+
+對話內容：
+{conversation}"""
+
+
+def build_topic_extraction_prompt(conversation: str, existing_topics: list[str]) -> str:
+    """組合主題萃取 prompt：當天對話 + 既有主題清單。"""
+    topics_text = "、".join(existing_topics) if existing_topics else "（目前沒有既有主題）"
+    return TOPIC_EXTRACTION_PROMPT.format(existing_topics=topics_text, conversation=conversation)

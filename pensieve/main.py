@@ -51,6 +51,8 @@ def main() -> None:
 
     application.job_queue.run_daily(jobs.run_morning_quote, time=jobs.MORNING_QUOTE_TIME)
 
+    application.job_queue.run_daily(jobs.run_topic_extraction, time=jobs.TOPIC_EXTRACTION_TIME)
+
     application.job_queue.run_repeating(
         jobs.heartbeat_job,
         interval=state.HEARTBEAT_INTERVAL_SECONDS,

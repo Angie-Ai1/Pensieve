@@ -48,12 +48,17 @@ def load_recent_daily_notes(days: int, end_date: date | None = None) -> list[tup
 def build_context_bundle(days: int = config.DAILY_NOTES_LOOKBACK_DAYS) -> str:
     """組裝 MEMORY.md + 近 N 天 daily notes + 近期學習筆記為單一段落，作為所有 Gemini 呼叫的共用 context。"""
     from pensieve.context.learning_notes import load_recent_learning_notes
+    from pensieve.context.topic_memory import load_active
 
     parts: list[str] = []
 
     memory = load_memory()
     if memory:
         parts.append(f"# MEMORY\n\n{memory}")
+
+    topics = load_active(days)
+    if topics:
+        parts.append(f"# 主題記憶（近期聊過的主題）\n\n{topics}")
 
     for target_date, content in load_recent_daily_notes(days):
         parts.append(f"# Daily Note ({target_date:%Y-%m-%d})\n\n{content}")

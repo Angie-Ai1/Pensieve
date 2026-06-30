@@ -6,7 +6,7 @@ from datetime import date, datetime, time, timedelta
 from telegram import Bot
 from telegram.ext import ContextTypes
 
-from pensieve import config, gemini_client, prompts, state
+from pensieve import config, gemini_client, memory_extract, prompts, state
 from pensieve.context.daily_notes import (
     TAIPEI_TZ,
     build_context_bundle,
@@ -25,6 +25,9 @@ TELEGRAM_MESSAGE_LIMIT = 4096
 DAILY_DIGEST_TIMES = (time(23, 45, tzinfo=TAIPEI_TZ), time(23, 55, tzinfo=TAIPEI_TZ))
 
 MORNING_QUOTE_TIME = time(8, 0, tzinfo=TAIPEI_TZ)
+
+# 半夜把當天對話 buffer 萃取進主題記憶（避開 23:45/23:55 的每日推播時段）
+TOPIC_EXTRACTION_TIME = time(3, 0, tzinfo=TAIPEI_TZ)
 
 # 啟動補推播時，往回檢查的天數（仿 n8n 09:00 補跑邏輯）
 DIGEST_CATCHUP_DAYS = 7
@@ -100,6 +103,14 @@ async def catch_up_digests(bot: Bot) -> None:
                 logger.info("補推播 %s 的每日彙整", date_str)
         except Exception:
             logger.exception("補推播 %s 的每日彙整失敗，略過", date_str)
+
+
+async def run_topic_extraction(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """JobQueue 排程 callback：半夜把對話 buffer 萃取進主題記憶。失敗時保留 buffer 下次重試。"""
+    try:
+        await memory_extract.extract_buffer_to_topics()
+    except Exception:
+        logger.exception("主題萃取 job 失敗，保留 buffer 待下次重試")
 
 
 async def heartbeat_job(context: ContextTypes.DEFAULT_TYPE) -> None:
