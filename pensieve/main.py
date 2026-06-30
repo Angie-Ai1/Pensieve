@@ -29,6 +29,7 @@ def main() -> None:
     application.add_handler(CommandHandler("help", handlers.help_command))
     application.add_handler(CommandHandler("digest", handlers.digest))
     application.add_handler(CommandHandler("memory_update", handlers.memory_update))
+    application.add_handler(CommandHandler("memory_extract", handlers.extract_memory))
     application.add_handler(CommandHandler("export", learning_handler.export_notes))
     application.add_handler(
         CallbackQueryHandler(

@@ -10,6 +10,7 @@ from pensieve.context.conversation import append_turn, format_recent
 from pensieve.context.daily_notes import build_context_bundle
 from pensieve.context.memory import load_memory
 from pensieve.context.persona import load_persona
+from pensieve.memory_extract import extract_buffer_to_topics
 from pensieve.memory_update import generate_memory_draft, write_memory
 from pensieve.telegram import jobs
 
@@ -29,6 +30,7 @@ HELP_TEXT = (
     "/help - 顯示這份說明\n"
     "/digest - 顯示今日重點摘要\n"
     "/memory_update - 產生 MEMORY.md 更新草稿，確認後直接更新 MEMORY.md\n"
+    "/memory_extract - 把最近對話整理進主題記憶（Memories/）\n"
     "/export [關鍵字] - 匯出學習筆記(.md)，無關鍵字匯出全部，符合多筆會打包成 zip"
 )
 
@@ -103,6 +105,24 @@ async def memory_update_confirm(update: Update, context: ContextTypes.DEFAULT_TY
 
     write_memory(draft)
     await query.edit_message_text("已套用更新，MEMORY.md 已更新完成。")
+
+
+async def extract_memory(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not is_authorized(update):
+        return
+
+    status_message = await update.message.reply_text("正在把最近對話整理進主題記憶...")
+    try:
+        count = await extract_buffer_to_topics()
+    except Exception:
+        logger.exception("手動主題萃取失敗")
+        await status_message.edit_text("整理時發生錯誤，請稍後再試。")
+        return
+
+    if count == 0:
+        await status_message.edit_text("目前沒有需要整理的對話內容。")
+    else:
+        await status_message.edit_text(f"已整理 {count} 個主題到 Memories/，並清空了對話 buffer。")
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
